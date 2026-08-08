@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="인공지능 Google 뉴스 최신 기사 키워드 대시보드">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#15243c">
+  <title>인공지능 뉴스 키워드 대시보드</title>
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="인공지능 뉴스 키워드 대시보드">
+  <meta property="og:description" content="Google 뉴스 공개 RSS에서 모은 기사 제목의 키워드 순위와 최근 뉴스 20건.">
+  <meta property="og:locale" content="ko_KR">
+  <meta name="twitter:card" content="summary">
+  <style>
+    :root { --ink:#17263b; --muted:#627086; --line:#dce4ed; --paper:#fff; --canvas:#f4f7fb; --blue:#3478f6; --teal:#16b5a5; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--canvas); font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color:inherit; }
+    .hero { background:linear-gradient(115deg,#15243c 0%,#244c82 58%,#216f85 100%); color:#fff; padding:52px max(22px, calc((100vw - 1120px)/2)); }
+    .eyebrow { margin:0 0 12px; font-size:12px; font-weight:800; letter-spacing:.12em; color:#9fe2db; }
+    h1 { margin:0; font-size:clamp(30px,5vw,50px); line-height:1.12; letter-spacing:-.045em; }
+    .hero-copy { max-width:690px; margin:16px 0 0; color:#d9e6f7; font-size:15px; line-height:1.7; }
+    .wrap { width:min(1120px, calc(100% - 44px)); margin:0 auto; }
+    .summary { display:grid; grid-template-columns:1.4fr 1fr; gap:16px; margin-top:-28px; position:relative; }
+    .card { background:var(--paper); border:1px solid var(--line); border-radius:18px; box-shadow:0 8px 25px rgba(30,51,80,.06); }
+    .summary-main { padding:22px 24px; }
+    .summary-title { margin:0 0 8px; font-size:14px; font-weight:800; }
+    .summary-text { margin:0; color:var(--muted); font-size:14px; line-height:1.6; }
+    .summary-stats { display:grid; grid-template-columns:repeat(3,1fr); overflow:hidden; }
+    .stat { display:flex; flex-direction:column; justify-content:center; min-height:106px; padding:16px 18px; border-left:1px solid var(--line); }
+    .stat:first-child { border-left:0; }
+    .stat strong { font-size:27px; letter-spacing:-.05em; }
+    .stat span { margin-top:5px; color:var(--muted); font-size:12px; }
+    main { padding:34px 0 54px; }
+    .section-heading { display:flex; align-items:end; justify-content:space-between; gap:16px; margin:0 0 14px; }
+    h2 { margin:0; font-size:22px; letter-spacing:-.035em; }
+    .section-heading p { margin:0; color:var(--muted); font-size:13px; text-align:right; }
+    .chart-card { padding:25px 26px 24px; }
+    .chart { display:flex; flex-direction:column; gap:16px; margin-top:24px; }
+    .chart-row { display:grid; grid-template-columns:30px 92px minmax(70px,1fr) 34px; align-items:center; gap:12px; }
+    .rank { color:#8491a4; font-size:12px; font-weight:800; }
+    .term { font-size:14px; font-weight:800; word-break:keep-all; }
+    .bar-track { height:24px; min-width:0; overflow:hidden; border-radius:6px; background:#eaf0f6; }
+    .bar-fill { width:0; min-width:2px; height:100%; border-radius:6px; background:linear-gradient(90deg,var(--blue),var(--teal)); box-shadow:inset -1px 0 rgba(255,255,255,.28); transition:width .45s ease-out; }
+    .count { font-variant-numeric:tabular-nums; color:#2e4059; font-size:13px; font-weight:800; text-align:right; }
+    .method { display:flex; align-items:flex-start; gap:9px; margin:22px 0 0; padding-top:17px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; line-height:1.55; }
+    .method b { color:#35637d; white-space:nowrap; }
+    .news-section { margin-top:34px; }
+    .news-card { overflow:hidden; }
+    .news-list { margin:0; padding:0; list-style:none; }
+    .news-item { display:grid; grid-template-columns:43px minmax(0,1fr) auto; gap:14px; align-items:start; padding:18px 22px; border-top:1px solid var(--line); }
+    .news-item:first-child { border-top:0; }
+    .news-number { padding-top:3px; color:#9aa7b7; font-size:12px; font-weight:800; }
+    .news-title { display:inline; color:#1c314c; font-size:15px; font-weight:750; line-height:1.48; text-decoration:none; text-decoration-thickness:1px; text-underline-offset:3px; }
+    .news-title:hover, .news-title:focus-visible { color:#126b9d; text-decoration:underline; }
+    .news-meta { display:block; margin-top:6px; color:var(--muted); font-size:12px; }
+    .news-source { white-space:nowrap; color:#496681; font-size:12px; font-weight:800; }
+    footer { padding:0 0 34px; color:#708095; font-size:12px; line-height:1.6; }
+    footer a { color:#3d6e91; }
+    @media (max-width:720px) {
+      .hero { padding:40px 22px 54px; }
+      .summary { grid-template-columns:1fr; }
+      .summary-main { padding:20px; }
+      .stat { min-height:83px; padding:13px; }
+      .stat strong { font-size:22px; }
+      .chart-card { padding:21px 16px; }
+      .chart-row { grid-template-columns:24px 68px minmax(45px,1fr) 30px; gap:8px; }
+      .term { font-size:13px; }
+      .news-item { grid-template-columns:28px minmax(0,1fr); padding:16px; gap:8px; }
+      .news-source { grid-column:2; }
+      .section-heading { align-items:flex-start; flex-direction:column; }
+      .section-heading p { text-align:left; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">GOOGLE NEWS · STATIC SNAPSHOT</p>
+    <h1>인공지능 뉴스<br>키워드 대시보드</h1>
+    <p class="hero-copy">공개 Google 뉴스 RSS에서 수집한 최신 기사 제목을 기준으로, 어떤 주제가 반복되는지 한눈에 보여줍니다. 이 파일에 데이터가 포함되어 있어 인터넷 연결이나 API 키 없이 바로 열립니다.</p>
+  </header>
+
+  <div class="wrap">
+    <section class="summary" aria-label="수집 요약">
+      <div class="card summary-main">
+        <p class="summary-title">수집 기준</p>
+        <p class="summary-text">검색어 <b>“인공지능”</b> · 한국어 Google 뉴스 · 2026년 8월 7일 20:41 KST 기준<br>동일·유사 제목은 한 묶음으로 처리했습니다.</p>
+      </div>
+      <div class="card summary-stats">
+        <div class="stat"><strong id="raw-count">104</strong><span>RSS 원본 기사</span></div>
+        <div class="stat"><strong id="unique-count">102</strong><span>중복 제거 후</span></div>
+        <div class="stat"><strong id="shown-count">20</strong><span>최근 목록</span></div>
+      </div>
+    </section>
+
+    <main>
+      <section aria-labelledby="chart-heading">
+        <div class="section-heading">
+          <div><h2 id="chart-heading">제목 속 핵심 키워드 TOP 8</h2></div>
+          <p>중복 제거한 102개 제목에서의 언급 횟수</p>
+        </div>
+        <div class="card chart-card">
+          <div class="chart" id="keyword-chart" role="img" aria-label="기사 제목 키워드 순위 가로 막대그래프"></div>
+          <p class="method"><b>집계 방식</b><span>‘인공지능’과 AI 표기, 사람 이름·직책·지역명은 제외하고 명사성 키워드를 집계했습니다. 원문 제목을 정규화한 뒤 단어 유사도 0.72 이상을 중복 기사로 묶었습니다.</span></p>
+        </div>
+      </section>
+
+      <section class="news-section" aria-labelledby="news-heading">
+        <div class="section-heading">
+          <div><h2 id="news-heading">최근 뉴스 20건</h2></div>
+          <p>제목을 누르면 Google 뉴스 원문 연결로 이동합니다.</p>
+        </div>
+        <div class="card news-card"><ol class="news-list" id="news-list"></ol></div>
+      </section>
+    </main>
+
+    <footer>
+      데이터 출처: <a href="https://news.google.com/rss/search?q=%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5&amp;hl=ko&amp;gl=KR&amp;ceid=KR:ko" target="_blank" rel="noopener noreferrer">Google 뉴스 공개 RSS</a> · 정적 스냅샷 · 같은 데이터는 <a href="news.json">news.json</a>에도 저장되어 있습니다.<br>
+      Codex 바이브코딩 과정 실습 결과물입니다. 만들 때 쓴 문장은 <a href="PROMPT.txt">PROMPT.txt</a>에 그대로 있습니다.
+    </footer>
+  </div>
+
+  <script>
+    const dashboardData = {
+      collectedAt: "2026-08-07T20:41:28+09:00",
+      rawCount: 104,
+      uniqueCount: 102,
+      keywords: [
+        { term: "구글", count: 8 },
+        { term: "산업", count: 6 },
+        { term: "혁신", count: 6 },
+        { term: "보안", count: 5 },
+        { term: "대전환", count: 5 },
+        { term: "데이터", count: 4 },
+        { term: "바이러스", count: 4 },
+        { term: "네이버", count: 4 }
+      ],
+      articles: [
+        { title: "'AI 믿고 극한 다이어트' 中 30대, 45일 새 20㎏ 뺐지만 패혈증·장기부전", link: "https://news.google.com/rss/articles/CBMiakFVX3lxTE1qdDJrYzVZbGpLOVpTRW1JVHZaVjdxQXhNeDRQUktIdi1tNi1aSHdpdDVkM205a0VJck8xeGNKanlpSjR0eEVQRjJSSjc2UFptNWM5ZzdBVW5ERUtNZFlfZU02RTkycE5vTXfSAW9BVV95cUxNS2xYNUtiMjFYdE0tWEk1S201RWcwTlZEYUdsMGc5SVpxVEVYVS1Fa3AtbjhEZnNURXRKeWloSzZKQktpZUFGVW1tMDdXZDZ4TUlBSzdBZjQ0Yjk2RmN2and0eFlhNXd0SzFFbXVubkk?oc=5", source: "머니투데이", publishedAt: "2026-08-07T19:51:43+09:00" },
+        { title: "\"AI가 치매래요\"…'AI 의사' 믿었다 골머리 앓는 美 의료계 '경고'", link: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE5LYURZNEtzbGVfdjgwTElrcjByYmVYWGlJTWpybElON2tsTTY1anFNc3BPd2F5MUpQV3owQThTZWI2ZDFKcS1pR3FLZUF4bXFPT2lIeWN5Zi1hcVpTaktHV9IBeEFVX3lxTFA2XzhGWDNmYmlSWkJ3XzN6aTdJTkJYbXFCbHVfcFUwSG81LS0xODV4bnJXY2F4M01mN2E2YmZNVlFqVzhuS2NXSXFYTGhuXzF4NFh6dXh6cldjLVBmMURsTVdNRXB5a3FyUnk5cjN3YlZORFJfd2tVcw?oc=5", source: "뉴시스", publishedAt: "2026-08-07T19:47:39+09:00" },
+        { title: "이스트시큐리티-퓨리오사AI, NPU 기반 AI 보안 인프라 공동개발", link: "https://news.google.com/rss/articles/CBMiTkFVX3lxTE9zYjZBM0JVNTE4YWJIcXpWT1VzcVlHajhtTEdwdlkzUDYwZGszOTFKWWYzeXlfeUZnSWZZckpucjRJY293WnNVcEZMNV9LQQ?oc=5", source: "전자신문", publishedAt: "2026-08-07T19:06:01+09:00" },
+        { title: "“GPU도 전력도 아니다”…AI 기업 주가 흔든 건 결국 ‘돈’ [반도체 오디세이]", link: "https://news.google.com/rss/articles/CBMiUkFVX3lxTE1QWHdEMGVnME9KVk01anRrVlM1TmE4c3lORnNRbENUbmhlZ1VlRE5oUGdyUVY1d2JOSVcwSWxfMVIzdE1HZmxhRTZuTGdPbV9WTHc?oc=5", source: "매일경제 마켓", publishedAt: "2026-08-07T19:05:46+09:00" },
+        { title: "CCTV가 '봤다'에서 '증명했다'로… 제주대 보안기술, AI 선박에 싣는다", link: "https://news.google.com/rss/articles/CBMiWkFVX3lxTE1RZXRDZ0haWTlVVHd6anJ6XzVVSlZqeF90ZVFfTUdGRnZpTjNuNWdFTVY4ZnR0LWV4Y01ndEFwUVEwNmlyRUFxQTlCTG1mLWk0VmNRWU5wbEVPUQ?oc=5", source: "fnnews.com", publishedAt: "2026-08-07T19:01:10+09:00" },
+        { title: "챗GPT 무료 이용자도 ‘무제한 채팅’… 오픈AI, 사용량 제한 없애", link: "https://news.google.com/rss/articles/CBMiggFBVV95cUxQVW5jQlo0RHVYOVpnT2dhUXhiYlJNdDFXN2tMUGpmcUgtTmwzTDJNNzJsOGp5OUswVk5pX3FIVXZGNldOdjhTZzV3ekN2d0docG91c01yZTJPZllPbHo0QjNpQWRaQXNpZkZiaVdGcEpieGpWemZ2SWhkWE5tWGgtMGVB0gGWAUFVX3lxTFBnQ1NtekhGZ0FEQ1pBdlJFdWR4cGdjLVpaX2Q1RW04dVFqZG1tekRxdEh4N0k2SFhjTV9MLWtzLTNubVFjdEVNS0dWYV93LUZUWTlmdkpsRnpFeUktZmNtWDlvcUxjZ2xIeFNFQmlzd3o3Ym9JS0psS2FPcXJyVWlvQXdEMEVwS3Uzc21YeEZQZGpZckwtdw?oc=5", source: "biz.chosun.com", publishedAt: "2026-08-07T18:57:00+09:00" },
+        { title: "네이버 \"AI탭, 출시 한 달만에 MAU 1000만명 돌파\"", link: "https://news.google.com/rss/articles/CBMiYkFVX3lxTFBFYmkwYXRtTG9xSnFkY3FyckxZVWlldllidEVwQ1M5cVhxU21sREExTmp3SFd2SExRNGtrWWJGWEY5UE04cFBJLTQydVpvY0FkVHF6UFBmZ1dobUktQkF5TG9B?oc=5", source: "한국기자협회", publishedAt: "2026-08-07T18:48:48+09:00" },
+        { title: "서귀포고, 인공지능 동행 활동 운영", link: "https://news.google.com/rss/articles/CBMibkFVX3lxTE45SlBCYnZlUUhYR19mRmZBZnpPdmVsMHdXZ1R1d1NmUnA4ZTZwM3c0d085amxCWG8yTVRhU3QxWkZ4MWJ1b2JlRHZMMXk5Q2ZCWGwxQUxZTW1kMjIzSE5leVdmbmFnNGw2M2JhX3Zn?oc=5", source: "지금제주", publishedAt: "2026-08-07T18:34:28+09:00" },
+        { title: "메타가 자체 'AI 데이터센터'를 짓는 이유는?...자체 인프라로 ‘개인용 초지능’ 시대 준비", link: "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE9mRzBrdXFzUG9CZkZkTnI1ekJMMzVuaDhzcW1waU5xZEZacnBzZ010am5vY3VCMl9yZnVSMW03cDZPdm82TUJPWl9DTkQyUllJaThkbHY4SllHUmJsaEJzT3pZcUEzT3c?oc=5", source: "인공지능신문", publishedAt: "2026-08-07T18:22:11+09:00" },
+        { title: "광고·커머스로 외형 키운 네이버, AI 팩토리 내년부터 수익화", link: "https://news.google.com/rss/articles/CBMiZEFVX3lxTE9fS0F2OE4zVkllLU1UU1dKbVI1b3RoZWlwRlhzRV9fMnJpMmZ4bDZtR2tlNl93MFpRZlFEenlEWkIycGxMNW4zc1dzeXB1elhfVGpXRTFKeUwya29JelBFZDlyRi0?oc=5", source: "서울경제TV", publishedAt: "2026-08-07T18:18:27+09:00" },
+        { title: "건보공단, 생성형 인공지능(AI) 활용 홍보 콘텐츠 자체 제작", link: "https://news.google.com/rss/articles/CBMiZ0FVX3lxTFBHN3NQYnRhaUFSZHVURHZoeG9sQm1vNkZteENzQm0yUEdGTzNmU2RSMFNKT3hxb2JsQTZ0NVlfdmRHSG1zUE1iVzFZbFMxUHdxNTRFUWtneGgyOGdZYVJteGI3MjdydVU?oc=5", source: "의약뉴스", publishedAt: "2026-08-07T18:16:12+09:00" },
+        { title: "AIDC 얼라이언스…국산 AI 인프라 묶어 해외 시장 공략", link: "https://news.google.com/rss/articles/CBMiT0FVX3lxTE52b1FzN2ZBXzg1VVpaZ185TGQxeXN1dEZQLXR3YzNEMXFMNU9lVHV0blJqUTc2YlF2UVgwRm9IbFMwdUFpbE9WWTlkNHQ1bE0?oc=5", source: "바이라인네트워크", publishedAt: "2026-08-07T18:06:02+09:00" },
+        { title: "AI 손잡고 ‘체질 개선’ 경기산단 생존 승부수 [창간 38주년, AI경기 판을 바꾸다]", link: "https://news.google.com/rss/articles/CBMiT0FVX3lxTE9mY05vVXVpUk13WkNlZGdPT3JxUFZOMnhNOUxHek9vQzBDQU1WekhrRTlaVmhrZ1hRUlhlT1V2bzEyQlY5YmY3alJZRzRocVk?oc=5", source: "v.daum.net", publishedAt: "2026-08-07T18:01:00+09:00" },
+        { title: "[사이언스게시판] 과기정통부, K-문샷 'AI과학자' 다시 공모 外", link: "https://news.google.com/rss/articles/CBMiVEFVX3lxTE5ZejRIdk1LV0xuRDhkcWoyUFhOV1dUeVFqTlRPdnJ2SU85M2x3d0Zxc2llbVhxdzlaUHpvNGsyTzc3eTd6QWVhMnRuUVFVYTBnXzhvcA?oc=5", source: "동아사이언스", publishedAt: "2026-08-07T17:55:00+09:00" },
+        { title: "미래 AI 인재 키운다! 교실 밖 AI 수업으로 해답 찾는 힘 키워요", link: "https://news.google.com/rss/articles/CBMiigFBVV95cUxONUxKYVZ5NXFDTTZ3dkx4WS1BZGV3MmNTVHptcEctZG10R0d6WlNsU2xBN3F4NW1pZVpxM19abGd1YmJEM0VuZkEyT2hWM1VELXgzWGszRjh1bzFlTWtpZnJZQjB6NENVMm9QWHR5Rm5TUWFCTnBaOXdzNVQ1ODdhdFpLVklheGhfb1E?oc=5", source: "대한민국 정책브리핑", publishedAt: "2026-08-07T17:28:12+09:00" },
+        { title: "매출은 역대 최대 이익은 제자리… 네이버 ‘AI 수익화’ 시험대", link: "https://news.google.com/rss/articles/CBMicEFVX3lxTFBuZHdBb1FNME9RbUNFb2Y0NEE2T1VfZ3lJaDZ3aVA4QWlqVUFqTHZkTlVBQ2dKa0N6RmY3bDBjaUs5SXYtMTJUcDFnaVl1M3U4M3F6YkZhYWV6ZnEtRVNuNXhtV3BUa1llMGlwUnlyZzTSAXRBVV95cUxNQTg2aXVVeFdpcEFVRjYwU2hQUWlxOWhqY2plbmFNbWtOTVprS2VESzl6TEZ4dkZDcTlFMkRvdkxySEdQa2FBNnFGaW5nakMtcGRqcTExUDdPZFBaWTVHTExSUjQ3SU1lYk1WQWFZbEJacmZzNA?oc=5", source: "IT조선", publishedAt: "2026-08-07T17:19:33+09:00" },
+        { title: "한국농어촌공사, 캠코와 드론·인공지능 데이터 협력", link: "https://news.google.com/rss/articles/CBMibEFVX3lxTE10SmNsZ21xYTR1ZXpEZEhJYUxpX3NXSzNXT3IzbWM5S2c3YWhhZEFidkZra0p1dTBQdGx6OXBQdzNBWXFYcXQwaGZHMGNSdzVoNzdLSFlmbDY3czNoMi02UWNpZFpQdTY5QXRmcg?oc=5", source: "데일리중앙", publishedAt: "2026-08-07T17:03:46+09:00" },
+        { title: "\"연구 전 과정 AI가 스스로\"···정부, 미션 총괄책임자 찾는다", link: "https://news.google.com/rss/articles/CBMiakFVX3lxTFBDcE93SWVNQU5JcHBLMTVpZTlXR0c3MFFkSENaN1NPU3dnUUE1b0FodjNFTHdNVkF6cUxaZ21mQ3cxaF9sQk5yY1JKZzlQbWFRSTc4VWJOSG5fR0FxVloydmZvQlJaaDc3OXc?oc=5", source: "헬로디디", publishedAt: "2026-08-07T17:00:00+09:00" },
+        { title: "고위험 AI 관리부터 생성물 표시 완화까지…올 1월 시행 'AI기본법' 개정안 10여건", link: "https://news.google.com/rss/articles/CBMiT0FVX3lxTE9tR2ZwN2ZpMnpQNGtXZUVFdTJYY0loS0NpUnFacFgyUU9zNWR6ZnNUM0diRVNtWWlmRnZxZHJwOWtqNFl0c0NnRlhDVkVxUWs?oc=5", source: "v.daum.net", publishedAt: "2026-08-07T16:43:07+09:00" },
+        { title: "컴투스, MMORPG 유통 재도전···'제우스’ 장기 흥행작 만들기 성공할까", link: "https://news.google.com/rss/articles/CBMickFVX3lxTE1kX1o3WkIzSmxZSVZvQjNqeTd0cHpBbzF2WVhkMllaV1RndTdDUXJFWjRTcXU0NGRSOVJhVHhBR3lyTzUzRTZoNjR1UW8tclNGTnRfMENudnJvYjA1c3JidDJHREJHOU9jb2RGQWFISkE2QdIBdkFVX3lxTE5fZzd6dERQMTQ2T1ktTS02NmM5S0FmOWExbVI4VXpZQnZ2NXBzaGxoWmcwMWJFemlaeWxGSGFZbzlOcm43Y0xmc1ZkakVGOXhUY3B2cm5TcTN3dHJOek1iTzNaZHR1NWlCTU5qSkhDSnlKNzRGT1E?oc=5", source: "시사저널e", publishedAt: "2026-08-07T16:43:06+09:00" }
+      ]
+    };
+
+    const maxCount = Math.max(...dashboardData.keywords.map(item => item.count));
+    const chart = document.querySelector('#keyword-chart');
+    dashboardData.keywords.forEach((item, index) => {
+      const row = document.createElement('div');
+      row.className = 'chart-row';
+      const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = String(index + 1).padStart(2, '0');
+      const term = document.createElement('span'); term.className = 'term'; term.textContent = item.term;
+      const track = document.createElement('div'); track.className = 'bar-track';
+      const bar = document.createElement('div'); bar.className = 'bar-fill'; bar.style.width = `${(item.count / maxCount) * 100}%`; bar.setAttribute('aria-label', `${item.term} ${item.count}회`);
+      const count = document.createElement('span'); count.className = 'count'; count.textContent = `${item.count}회`;
+      track.append(bar); row.append(rank, term, track, count); chart.append(row);
+    });
+
+    const formatter = new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+    const list = document.querySelector('#news-list');
+    dashboardData.articles.forEach((article, index) => {
+      const item = document.createElement('li'); item.className = 'news-item';
+      const number = document.createElement('span'); number.className = 'news-number'; number.textContent = String(index + 1).padStart(2, '0');
+      const body = document.createElement('div');
+      const link = document.createElement('a'); link.className = 'news-title'; link.href = article.link; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = article.title;
+      const meta = document.createElement('span'); meta.className = 'news-meta'; meta.textContent = formatter.format(new Date(article.publishedAt));
+      const source = document.createElement('span'); source.className = 'news-source'; source.textContent = article.source;
+      body.append(link, meta); item.append(number, body, source); list.append(item);
+    });
+  </script>
+</body>
+</html>
