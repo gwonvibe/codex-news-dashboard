@@ -23,6 +23,9 @@
     h1 { margin:0; font-size:clamp(30px,5vw,50px); line-height:1.12; letter-spacing:-.045em; }
     .hero-copy { max-width:690px; margin:16px 0 0; color:#d9e6f7; font-size:15px; line-height:1.7; }
     .collect-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px 13px; margin-top:23px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    .query-input { width:min(250px, 100%); border:1px solid rgba(255,255,255,.5); border-radius:9px; padding:10px 12px; background:rgba(255,255,255,.97); color:#173657; font:inherit; font-size:14px; outline:none; }
+    .query-input:focus { border-color:#9fe2db; box-shadow:0 0 0 3px rgba(159,226,219,.24); }
     .collect-button { appearance:none; border:1px solid rgba(255,255,255,.35); border-radius:9px; padding:10px 15px; background:#fff; color:#173657; font:inherit; font-size:14px; font-weight:800; cursor:pointer; transition:transform .15s ease, background .15s ease; }
     .collect-button:hover:not(:disabled) { background:#dff7f3; transform:translateY(-1px); }
     .collect-button:disabled { cursor:wait; opacity:.72; }
@@ -87,6 +90,8 @@
     <h1>인공지능 뉴스<br>키워드 대시보드</h1>
     <p class="hero-copy">공개 Google 뉴스 RSS에서 수집한 최신 기사 제목을 기준으로, 어떤 주제가 반복되는지 한눈에 보여줍니다. 처음에는 포함된 스냅샷을 표시하고, Vercel 배포 화면에서는 최신 뉴스로 갱신할 수 있습니다.</p>
     <div class="collect-controls">
+      <label class="sr-only" for="news-query">뉴스 검색어</label>
+      <input class="query-input" id="news-query" name="query" type="search" value="인공지능" maxlength="80" placeholder="뉴스 검색어 입력" autocomplete="off">
       <button class="collect-button" id="collect-button" type="button">뉴스 수집</button>
       <span class="collect-time" id="collect-time" aria-live="polite"></span>
       <p class="collect-status" id="collect-status" role="status" hidden></p>
@@ -128,13 +133,14 @@
     </main>
 
     <footer>
-      데이터 출처: <a href="https://news.google.com/rss/search?q=%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5&amp;hl=ko&amp;gl=KR&amp;ceid=KR:ko" target="_blank" rel="noopener noreferrer">Google 뉴스 공개 RSS</a> · 처음 표시되는 스냅샷은 <a href="news.json">news.json</a>에 저장되어 있습니다.<br>
+      데이터 출처: <a id="source-link" href="https://news.google.com/rss/search?q=%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5&amp;hl=ko&amp;gl=KR&amp;ceid=KR:ko" target="_blank" rel="noopener noreferrer">Google 뉴스 공개 RSS</a> · 처음 표시되는 스냅샷은 <a href="news.json">news.json</a>에 저장되어 있습니다.<br>
       Codex 바이브코딩 과정 실습 결과물입니다. 만들 때 쓴 문장은 <a href="PROMPT.txt">PROMPT.txt</a>에 그대로 있습니다.
     </footer>
   </div>
 
   <script>
     const dashboardData = {
+      query: "인공지능",
       collectedAt: "2026-08-07T20:41:28+09:00",
       rawCount: 104,
       uniqueCount: 102,
@@ -173,18 +179,34 @@
     };
 
     const formatter = new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
-    const storageKey = 'ai-news-dashboard-data-v1';
+    const storageKey = 'ai-news-dashboard-data-v2';
     const chart = document.querySelector('#keyword-chart');
     const list = document.querySelector('#news-list');
     const button = document.querySelector('#collect-button');
     const status = document.querySelector('#collect-status');
     const collectedTime = document.querySelector('#collect-time');
+    const queryInput = document.querySelector('#news-query');
+    const pageTitle = document.querySelector('title');
+    const headline = document.querySelector('h1');
+    const sourceLink = document.querySelector('#source-link');
 
     function formatCollectedAt(value) {
       return `수집 시각 ${new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short', hour12: false }).format(new Date(value))}`;
     }
 
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+    }
+
+    function updateQueryLabels(query) {
+      const safeQuery = query || '인공지능';
+      headline.innerHTML = `${escapeHtml(safeQuery)} 뉴스<br>키워드 대시보드`;
+      pageTitle.textContent = `${safeQuery} 뉴스 키워드 대시보드`;
+      sourceLink.href = `https://news.google.com/rss/search?${new URLSearchParams({ q: safeQuery, hl: 'ko', gl: 'KR', ceid: 'KR:ko' })}`;
+    }
+
     function render(data) {
+      const query = data.query || '인공지능';
       const maxCount = Math.max(1, ...data.keywords.map(item => item.count));
       chart.replaceChildren();
       data.keywords.forEach((item, index) => {
@@ -209,9 +231,11 @@
       document.querySelector('#raw-count').textContent = data.rawCount;
       document.querySelector('#unique-count').textContent = data.uniqueCount;
       document.querySelector('#shown-count').textContent = data.articles.length;
-      document.querySelector('#collection-summary').innerHTML = `검색어 <b>“인공지능”</b> · 한국어 Google 뉴스 · ${formatCollectedAt(data.collectedAt).replace('수집 시각 ', '')}<br>동일·유사 제목은 한 묶음으로 처리했습니다.`;
+      document.querySelector('#collection-summary').innerHTML = `검색어 <b>“${escapeHtml(query)}”</b> · 한국어 Google 뉴스 · ${formatCollectedAt(data.collectedAt).replace('수집 시각 ', '')}<br>동일·유사 제목은 한 묶음으로 처리했습니다.`;
       document.querySelector('#chart-description').textContent = `중복 제거한 ${data.uniqueCount}개 제목에서의 언급 횟수`;
       collectedTime.textContent = formatCollectedAt(data.collectedAt);
+      queryInput.value = query;
+      updateQueryLabels(query);
     }
 
     function getSavedData() {
@@ -220,8 +244,15 @@
 
     render(getSavedData() || dashboardData);
 
-    button.addEventListener('click', async () => {
-      if (location.protocol === 'file:' || /^(localhost|127\\.0\\.0\\.1)$/.test(location.hostname)) {
+    async function collectNews() {
+      const query = queryInput.value.trim();
+      if (!query) {
+        status.textContent = '수집할 검색어를 입력해 주세요.';
+        status.hidden = false;
+        queryInput.focus();
+        return;
+      }
+      if (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
         status.textContent = '로컬에서 열었을 때는 뉴스를 수집할 수 없습니다. Vercel에 배포한 주소에서 이용해 주세요.';
         status.hidden = false;
         return;
@@ -230,7 +261,7 @@
       button.textContent = '수집 중…';
       status.hidden = true;
       try {
-        const response = await fetch('/api/news', { headers: { Accept: 'application/json' } });
+        const response = await fetch(`/api/news?${new URLSearchParams({ q: query })}`, { headers: { Accept: 'application/json' } });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || '뉴스를 불러오지 못했습니다.');
         localStorage.setItem(storageKey, JSON.stringify(data));
@@ -242,6 +273,11 @@
         button.disabled = false;
         button.textContent = '뉴스 수집';
       }
+    }
+
+    button.addEventListener('click', collectNews);
+    queryInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') collectNews();
     });
   </script>
 </body>
