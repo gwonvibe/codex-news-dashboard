@@ -22,12 +22,12 @@
     .eyebrow { margin:0 0 12px; font-size:12px; font-weight:800; letter-spacing:.12em; color:#9fe2db; }
     h1 { margin:0; font-size:clamp(30px,5vw,50px); line-height:1.12; letter-spacing:-.045em; }
     .hero-copy { max-width:690px; margin:16px 0 0; color:#d9e6f7; font-size:15px; line-height:1.7; }
-    .hero-inner { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; }
-    .collector { flex:0 0 auto; display:flex; align-items:center; gap:10px; padding-top:4px; }
-    .collect-button { border:1px solid rgba(255,255,255,.45); border-radius:10px; background:#fff; color:#17446f; padding:10px 14px; font:800 14px inherit; cursor:pointer; transition:transform .15s, background .15s; }
-    .collect-button:hover:not(:disabled) { background:#dff7f4; transform:translateY(-1px); }
-    .collect-button:disabled { cursor:wait; opacity:.75; }
-    .collected-at { color:#d9e6f7; font-size:12px; white-space:nowrap; }
+    .collect-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px 13px; margin-top:23px; }
+    .collect-button { appearance:none; border:1px solid rgba(255,255,255,.35); border-radius:9px; padding:10px 15px; background:#fff; color:#173657; font:inherit; font-size:14px; font-weight:800; cursor:pointer; transition:transform .15s ease, background .15s ease; }
+    .collect-button:hover:not(:disabled) { background:#dff7f3; transform:translateY(-1px); }
+    .collect-button:disabled { cursor:wait; opacity:.72; }
+    .collect-time { color:#c9e5ef; font-size:13px; }
+    .collect-status { width:100%; margin:0; color:#ffdba1; font-size:13px; }
     .wrap { width:min(1120px, calc(100% - 44px)); margin:0 auto; }
     .summary { display:grid; grid-template-columns:1.4fr 1fr; gap:16px; margin-top:-28px; position:relative; }
     .card { background:var(--paper); border:1px solid var(--line); border-radius:18px; box-shadow:0 8px 25px rgba(30,51,80,.06); }
@@ -67,8 +67,6 @@
     footer a { color:#3d6e91; }
     @media (max-width:720px) {
       .hero { padding:40px 22px 54px; }
-      .hero-inner { flex-direction:column; gap:18px; }
-      .collector { padding:0; flex-wrap:wrap; }
       .summary { grid-template-columns:1fr; }
       .summary-main { padding:20px; }
       .stat { min-height:83px; padding:13px; }
@@ -85,16 +83,13 @@
 </head>
 <body>
   <header class="hero">
-    <div class="hero-inner">
-      <div>
-        <p class="eyebrow">GOOGLE NEWS · KEYWORD DASHBOARD</p>
-        <h1>인공지능 뉴스<br>키워드 대시보드</h1>
-        <p class="hero-copy">공개 Google 뉴스 RSS에서 수집한 최신 기사 제목을 기준으로, 어떤 주제가 반복되는지 한눈에 보여줍니다.</p>
-      </div>
-      <div class="collector">
-        <button class="collect-button" id="collect-button" type="button">뉴스 수집</button>
-        <span class="collected-at" id="collected-at" aria-live="polite"></span>
-      </div>
+    <p class="eyebrow">GOOGLE NEWS · STATIC SNAPSHOT</p>
+    <h1>인공지능 뉴스<br>키워드 대시보드</h1>
+    <p class="hero-copy">공개 Google 뉴스 RSS에서 수집한 최신 기사 제목을 기준으로, 어떤 주제가 반복되는지 한눈에 보여줍니다. 처음에는 포함된 스냅샷을 표시하고, Vercel 배포 화면에서는 최신 뉴스로 갱신할 수 있습니다.</p>
+    <div class="collect-controls">
+      <button class="collect-button" id="collect-button" type="button">뉴스 수집</button>
+      <span class="collect-time" id="collect-time" aria-live="polite"></span>
+      <p class="collect-status" id="collect-status" role="status" hidden></p>
     </div>
   </header>
 
@@ -102,12 +97,12 @@
     <section class="summary" aria-label="수집 요약">
       <div class="card summary-main">
         <p class="summary-title">수집 기준</p>
-        <p class="summary-text" id="summary-text"></p>
+        <p class="summary-text" id="collection-summary">검색어 <b>“인공지능”</b> · 한국어 Google 뉴스<br>동일·유사 제목은 한 묶음으로 처리했습니다.</p>
       </div>
       <div class="card summary-stats">
-        <div class="stat"><strong id="raw-count"></strong><span>RSS 원본 기사</span></div>
-        <div class="stat"><strong id="unique-count"></strong><span>중복 제거 후</span></div>
-        <div class="stat"><strong id="shown-count"></strong><span>최근 목록</span></div>
+        <div class="stat"><strong id="raw-count">104</strong><span>RSS 원본 기사</span></div>
+        <div class="stat"><strong id="unique-count">102</strong><span>중복 제거 후</span></div>
+        <div class="stat"><strong id="shown-count">20</strong><span>최근 목록</span></div>
       </div>
     </section>
 
@@ -115,7 +110,7 @@
       <section aria-labelledby="chart-heading">
         <div class="section-heading">
           <div><h2 id="chart-heading">제목 속 핵심 키워드 TOP 8</h2></div>
-          <p id="chart-description"></p>
+          <p id="chart-description">중복 제거한 제목에서의 언급 횟수</p>
         </div>
         <div class="card chart-card">
           <div class="chart" id="keyword-chart" role="img" aria-label="기사 제목 키워드 순위 가로 막대그래프"></div>
@@ -133,7 +128,7 @@
     </main>
 
     <footer>
-      데이터 출처: <a href="https://news.google.com/rss/search?q=%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5&amp;hl=ko&amp;gl=KR&amp;ceid=KR:ko" target="_blank" rel="noopener noreferrer">Google 뉴스 공개 RSS</a> · 정적 스냅샷 · 같은 데이터는 <a href="news.json">news.json</a>에도 저장되어 있습니다.<br>
+      데이터 출처: <a href="https://news.google.com/rss/search?q=%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5&amp;hl=ko&amp;gl=KR&amp;ceid=KR:ko" target="_blank" rel="noopener noreferrer">Google 뉴스 공개 RSS</a> · 처음 표시되는 스냅샷은 <a href="news.json">news.json</a>에 저장되어 있습니다.<br>
       Codex 바이브코딩 과정 실습 결과물입니다. 만들 때 쓴 문장은 <a href="PROMPT.txt">PROMPT.txt</a>에 그대로 있습니다.
     </footer>
   </div>
@@ -177,68 +172,72 @@
       ]
     };
 
-    const STORAGE_KEY = 'ai-news-dashboard-data-v1';
-    const isLocal = location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(location.hostname);
-    const formatter = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short', hour12: false, timeZone: 'Asia/Seoul' });
+    const formatter = new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+    const storageKey = 'ai-news-dashboard-data-v1';
+    const chart = document.querySelector('#keyword-chart');
+    const list = document.querySelector('#news-list');
+    const button = document.querySelector('#collect-button');
+    const status = document.querySelector('#collect-status');
+    const collectedTime = document.querySelector('#collect-time');
+
+    function formatCollectedAt(value) {
+      return `수집 시각 ${new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short', hour12: false }).format(new Date(value))}`;
+    }
 
     function render(data) {
+      const maxCount = Math.max(1, ...data.keywords.map(item => item.count));
+      chart.replaceChildren();
+      data.keywords.forEach((item, index) => {
+        const row = document.createElement('div'); row.className = 'chart-row';
+        const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = String(index + 1).padStart(2, '0');
+        const term = document.createElement('span'); term.className = 'term'; term.textContent = item.term;
+        const track = document.createElement('div'); track.className = 'bar-track';
+        const bar = document.createElement('div'); bar.className = 'bar-fill'; bar.style.width = `${(item.count / maxCount) * 100}%`; bar.setAttribute('aria-label', `${item.term} ${item.count}회`);
+        const count = document.createElement('span'); count.className = 'count'; count.textContent = `${item.count}회`;
+        track.append(bar); row.append(rank, term, track, count); chart.append(row);
+      });
+      list.replaceChildren();
+      data.articles.forEach((article, index) => {
+        const item = document.createElement('li'); item.className = 'news-item';
+        const number = document.createElement('span'); number.className = 'news-number'; number.textContent = String(index + 1).padStart(2, '0');
+        const body = document.createElement('div');
+        const link = document.createElement('a'); link.className = 'news-title'; link.href = article.link; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = article.title;
+        const meta = document.createElement('span'); meta.className = 'news-meta'; meta.textContent = formatter.format(new Date(article.publishedAt));
+        const source = document.createElement('span'); source.className = 'news-source'; source.textContent = article.source;
+        body.append(link, meta); item.append(number, body, source); list.append(item);
+      });
       document.querySelector('#raw-count').textContent = data.rawCount;
       document.querySelector('#unique-count').textContent = data.uniqueCount;
       document.querySelector('#shown-count').textContent = data.articles.length;
-      document.querySelector('#summary-text').innerHTML = `검색어 <b>“인공지능”</b> · 한국어 Google 뉴스 · ${formatter.format(new Date(data.collectedAt))} KST 기준<br>동일 제목은 한 묶음으로 처리했습니다.`;
-      document.querySelector('#collected-at').textContent = `수집 ${formatter.format(new Date(data.collectedAt))}`;
+      document.querySelector('#collection-summary').innerHTML = `검색어 <b>“인공지능”</b> · 한국어 Google 뉴스 · ${formatCollectedAt(data.collectedAt).replace('수집 시각 ', '')}<br>동일·유사 제목은 한 묶음으로 처리했습니다.`;
       document.querySelector('#chart-description').textContent = `중복 제거한 ${data.uniqueCount}개 제목에서의 언급 횟수`;
-      const maxCount = Math.max(1, ...data.keywords.map(item => item.count));
-    const chart = document.querySelector('#keyword-chart');
-      chart.replaceChildren();
-    data.keywords.forEach((item, index) => {
-      const row = document.createElement('div');
-      row.className = 'chart-row';
-      const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = String(index + 1).padStart(2, '0');
-      const term = document.createElement('span'); term.className = 'term'; term.textContent = item.term;
-      const track = document.createElement('div'); track.className = 'bar-track';
-      const bar = document.createElement('div'); bar.className = 'bar-fill'; bar.style.width = `${(item.count / maxCount) * 100}%`; bar.setAttribute('aria-label', `${item.term} ${item.count}회`);
-      const count = document.createElement('span'); count.className = 'count'; count.textContent = `${item.count}회`;
-      track.append(bar); row.append(rank, term, track, count); chart.append(row);
-    });
-
-    const list = document.querySelector('#news-list');
-      list.replaceChildren();
-    data.articles.forEach((article, index) => {
-      const item = document.createElement('li'); item.className = 'news-item';
-      const number = document.createElement('span'); number.className = 'news-number'; number.textContent = String(index + 1).padStart(2, '0');
-      const body = document.createElement('div');
-      const link = document.createElement('a'); link.className = 'news-title'; link.href = article.link; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = article.title;
-      const meta = document.createElement('span'); meta.className = 'news-meta'; meta.textContent = formatter.format(new Date(article.publishedAt));
-      const source = document.createElement('span'); source.className = 'news-source'; source.textContent = article.source;
-      body.append(link, meta); item.append(number, body, source); list.append(item);
-    });
+      collectedTime.textContent = formatCollectedAt(data.collectedAt);
     }
 
-    let currentData = dashboardData;
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (saved && Array.isArray(saved.articles) && Array.isArray(saved.keywords)) currentData = saved;
-    } catch (_) { localStorage.removeItem(STORAGE_KEY); }
-    render(currentData);
+    function getSavedData() {
+      try { return JSON.parse(localStorage.getItem(storageKey)); } catch { return null; }
+    }
 
-    const button = document.querySelector('#collect-button');
+    render(getSavedData() || dashboardData);
+
     button.addEventListener('click', async () => {
-      if (isLocal) {
-        alert('로컬에서 파일을 열었을 때는 뉴스 수집을 지원하지 않습니다. Vercel에 배포한 페이지에서 이용해 주세요.');
+      if (location.protocol === 'file:' || /^(localhost|127\\.0\\.0\\.1)$/.test(location.hostname)) {
+        status.textContent = '로컬에서 열었을 때는 뉴스를 수집할 수 없습니다. Vercel에 배포한 주소에서 이용해 주세요.';
+        status.hidden = false;
         return;
       }
       button.disabled = true;
-      button.textContent = '뉴스 수집 중…';
+      button.textContent = '수집 중…';
+      status.hidden = true;
       try {
-        const response = await fetch('/api/news', { cache: 'no-store' });
+        const response = await fetch('/api/news', { headers: { Accept: 'application/json' } });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        currentData = data;
-        render(currentData);
+        if (!response.ok) throw new Error(data.error || '뉴스를 불러오지 못했습니다.');
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        render(data);
       } catch (error) {
-        alert(error.message || '뉴스 수집 중 오류가 발생했습니다.');
+        status.textContent = error.message || '뉴스 수집 중 문제가 발생했습니다.';
+        status.hidden = false;
       } finally {
         button.disabled = false;
         button.textContent = '뉴스 수집';
