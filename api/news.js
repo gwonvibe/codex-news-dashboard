@@ -1,5 +1,3 @@
-const GOOGLE_NEWS_RSS = 'https://news.google.com/rss/search';
-
 const STOP_WORDS = new Set([
   '인공지능', 'ai', 'a', 'i', '관련', '통해', '위한', '대한', '위해', '위해', '이용', '활용', '기반',
   '한다', '했다', '한다는', '있는', '있는가', '된다', '됐다', '한다며', '이번', '이것', '그것', '더',
@@ -39,10 +37,12 @@ function uniqueArticles(articles) {
     .some(existing => similarity(existing.title, article.title) >= 0.72));
 }
 
-function keywordRanking(articles) {
+function keywordRanking(articles, query) {
+  // 검색어를 이루는 단어도 제외하여 검색어 자체가 순위를 차지하지 않게 합니다.
+  const queryTerms = new Set(tokens(query).map(term => term.toLowerCase()));
   const counts = new Map();
   for (const article of articles) {
-    for (const word of new Set(tokens(article.title))) {
+    for (const word of new Set(tokens(article.title).filter(term => !queryTerms.has(term.toLowerCase())))) {
       counts.set(word, (counts.get(word) || 0) + 1);
     }
   }
@@ -56,12 +56,13 @@ module.exports = async (request, response) => {
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
   response.setHeader('Cache-Control', 'no-store');
   try {
-    const query = typeof request.query.q === 'string' ? request.query.q.trim() : '인공지능';
-    if (!query) throw new Error('검색어를 입력해 주세요.');
-    if (query.length > 80) throw new Error('검색어는 80자 이내로 입력해 주세요.');
-
-    const rssUrl = new URL(GOOGLE_NEWS_RSS);
-    rssUrl.search = new URLSearchParams({ q: query, hl: 'ko', gl: 'KR', ceid: 'KR:ko' }).toString();
+    const requestUrl = new URL(request.url, 'https://news-dashboard.local');
+    const query = (requestUrl.searchParams.get('q') || '인공지능').trim().slice(0, 80);
+    if (!query) {
+      response.status(400).json({ error: '검색어를 입력해 주세요.' });
+      return;
+    }
+    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`;
     const upstream = await fetch(rssUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AI-News-Dashboard/1.0)' },
       signal: AbortSignal.timeout(10000)
@@ -76,12 +77,9 @@ module.exports = async (request, response) => {
     const articles = uniqueArticles(rawArticles);
     response.status(200).json({
       query, collectedAt: new Date().toISOString(), rawCount: rawArticles.length, uniqueCount: articles.length,
-      keywords: keywordRanking(articles), articles: articles.slice(0, 20)
+      keywords: keywordRanking(articles, query), articles: articles.slice(0, 20)
     });
   } catch (error) {
-    const validationError = error.message === '검색어를 입력해 주세요.' || error.message === '검색어는 80자 이내로 입력해 주세요.';
-    response.status(validationError ? 400 : 502).json({
-      error: validationError ? error.message : 'Google 뉴스 수집에 실패했습니다. 잠시 후 다시 시도해 주세요.'
-    });
+    response.status(502).json({ error: 'Google 뉴스 수집에 실패했습니다. 잠시 후 다시 시도해 주세요.' });
   }
 };
